@@ -1,0 +1,5 @@
+tenant_label,team,group
+t-ledger,Ledger,Payments
+t-checkout,Checkout,Payments
+t-catalog,Catalog,Retail
+catalog-legacy,Catalog,Retail

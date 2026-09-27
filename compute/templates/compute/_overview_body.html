@@ -1,0 +1,97 @@
+{% load houdini %}
+{% if not summaries %}
+  <section class="empty">
+    <h2>No data yet</h2>
+    <p>Run <code>python manage.py collect</code> against Thanos, or <code>python manage.py generate_demo_data</code> for a demo.</p>
+  </section>
+{% endif %}
+
+{% for s in summaries %}
+<section class="card cluster">
+  <header class="card-head">
+    <h2>{{ s.name }}</h2>
+    <span class="muted">{{ resource_label }} · worker nodes · as of {{ s.latest|date:"Y-m-d H:i" }} UTC</span>
+  </header>
+  {% if s.latest %}
+  <div class="kpis">
+    <div class="kpi">
+      <div class="kpi-label">Reserve (unrequested)</div>
+      <div class="kpi-value">{{ s.reserve|pct }}</div>
+      <div class="kpi-sub">
+        {% if s.reserve_ok %}<span class="status good" aria-hidden="true">●</span> Above {{ target_reserve|pct }} target
+        {% else %}<span class="status critical" aria-hidden="true">▲</span> Below {{ target_reserve|pct }} target{% endif %}
+      </div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Runway to reserve target</div>
+      <div class="kpi-value">{{ s.runway_days|runway }}</div>
+      <div class="kpi-sub">Linear trend of daily requests</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Reclaimable ({{ filters.profile }})</div>
+      <div class="kpi-value">{{ s.reclaimable|num }} <small>{{ unit }}</small></div>
+      <div class="kpi-sub">≈ {{ s.reclaimable_nodes|num }} worker nodes of {{ s.node_size|num:0 }} {{ unit }}</div>
+    </div>
+  </div>
+  <div class="charts">
+    <figure>
+      <figcaption>Capacity → quota → requests → usage ({{ unit }})</figcaption>
+      <div class="chart chart-ladder" data-chart="ladder" data-unit="{{ unit }}"
+           data-values='[{{ s.allocatable|floatformat:"2u" }}, {{ s.quota|floatformat:"2u" }}, {{ s.requested|floatformat:"2u" }}, {{ s.used|floatformat:"2u" }}]'></div>
+      <table class="sr-table">
+        <tr><th>Allocatable</th><td>{{ s.allocatable|num }}</td></tr>
+        <tr><th>Tenant quota (hard)</th><td>{{ s.quota|num }}</td></tr>
+        <tr><th>Requested</th><td>{{ s.requested|num }} (tenants {{ s.requested_tenant|num }}, platform {{ s.requested_platform|num }})</td></tr>
+        <tr><th>Used (hourly avg)</th><td>{{ s.used|num }}</td></tr>
+      </table>
+    </figure>
+    <figure>
+      <figcaption>Trend over the last {{ filters.window }} days ({{ unit }})</figcaption>
+      {{ s.trend|json_script:s.name }}
+      <div class="chart chart-trend" data-chart="trend" data-source="{{ s.name }}" data-unit="{{ unit }}"></div>
+    </figure>
+  </div>
+  {% else %}
+  <p class="muted">No worker node data collected yet.</p>
+  {% endif %}
+</section>
+{% endfor %}
+
+{% if teams %}
+<section class="card">
+  <header class="card-head">
+    <h2>Teams by reclaimable {% if filters.resource == "cpu" %}CPU{% else %}memory{% endif %}</h2>
+    <span class="muted">Averages over the last {{ filters.window }} days · {{ filters.profile }} profile · {{ unit }}</span>
+  </header>
+  {% if unmapped %}
+  <p class="notice"><span class="status warning" aria-hidden="true">▲</span>
+    {{ unmapped|length }} tenant label{{ unmapped|length|pluralize }} not mapped to a team.
+    <a href="{% url 'admin:compute_tenantlabel_add' %}">Map in admin</a></p>
+  {% endif %}
+  <div class="table-wrap">
+  <table class="data">
+    <thead>
+      <tr>
+        <th>Team</th><th>Group</th>
+        <th class="n">Quota</th><th class="n">Requested</th><th class="n">Used</th>
+        <th class="n">Efficiency</th><th class="n">Reclaimable</th><th>Relative to largest</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for t in teams %}
+      <tr class="{{ t.kind }}">
+        <td>{{ t.team }}</td>
+        <td>{{ t.group|default:"–" }}</td>
+        <td class="n">{{ t.quota|num }}</td>
+        <td class="n">{{ t.requested|num }}</td>
+        <td class="n">{{ t.used|num }}</td>
+        <td class="n">{{ t.efficiency|pct }}</td>
+        <td class="n strong">{{ t.reclaimable|num }}</td>
+        <td>{% if t.kind != "platform" %}<span class="meter" title="{{ t.share|pct:1 }} of all tenant reclaimable"><span style="width: {{ t.relative|pct:1 }}"></span></span>{% else %}<span class="muted">shown separately</span>{% endif %}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</section>
+{% endif %}

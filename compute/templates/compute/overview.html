@@ -1,0 +1,29 @@
+{% extends "compute/base.html" %}
+{% block title %}Overview · Houdini Compute{% endblock %}
+{% block content %}
+<form class="filters" hx-get="{% url 'overview' %}" hx-target="#overview" hx-trigger="change" hx-push-url="true">
+  <label>Cluster
+    <select name="cluster">
+      <option value="">All clusters</option>
+      {% for c in all_clusters %}<option value="{{ c }}" {% if c == filters.cluster %}selected{% endif %}>{{ c }}</option>{% endfor %}
+    </select>
+  </label>
+  <label>Resource
+    <select name="resource">
+      {% for key, label in resources.items %}<option value="{{ key }}" {% if key == filters.resource %}selected{% endif %}>{{ label }}</option>{% endfor %}
+    </select>
+  </label>
+  <label>Window
+    <select name="window">
+      {% for w in windows %}<option value="{{ w }}" {% if w == filters.window %}selected{% endif %}>Last {{ w }} days</option>{% endfor %}
+    </select>
+  </label>
+  <label>Aggressiveness
+    <select name="profile">
+      {% for p in profiles %}<option value="{{ p.name }}" {% if p.name == filters.profile %}selected{% endif %}>{{ p.label }}</option>{% endfor %}
+    </select>
+  </label>
+  <noscript><button type="submit">Apply</button></noscript>
+</form>
+<div id="overview">{% include "compute/_overview_body.html" %}</div>
+{% endblock %}
